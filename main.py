@@ -6,7 +6,7 @@ app = FastAPI()
 
 @app.get("/", summary='first endpoint')
 def root():
-    return 'Hello World!'
+    return 'Hello World!asd'
 
 
 if __name__ == '__main__':
