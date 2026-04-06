@@ -1,45 +1,33 @@
 from fastapi import FastAPI
 
-from pydantic import BaseModel, Field, EmailStr, ConfigDict
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped
 
 app = FastAPI()
 
-data = {
-    'email': 'abc@mail.ru',
-    'bio': 'УДАААА',
-    'age': 10,
-}
+engine = create_async_engine('sqlite+aiosqlite:///books.db')
 
-# data_without_age = {
-#     'email': 'abc@mail.ru',
-#     'bio': 'test',
-#     # 'gender': 'male',
-#     # 'birthday': '2002-12-12'
-# }
+new_session = async_sessionmaker(engine, expire_on_commit=False)
 
-class UserSchema(BaseModel):
-    email: EmailStr
-    bio: str | None = Field(max_length=10)
-    model_config = ConfigDict(extra='forbid')
+async def get_session():
+    async with new_session() as session:
+        yield session
 
 
-users = []
+class Base(DeclarativeBase):
+    pass
+class BookModel(Base): # в sqlalchemy всегда наследование от base класса
+    __tablename__ = 'books'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str]
+    author: Mapped[str]
 
 
-@app.post('/users')
-def add_user(user: UserSchema):
-    users.append(user)
-    return {'ok': True, 'msg': 'Юзер добавлен'}
+@app.post('/setup_database')
+async def setup_database(): # создаёт таблицу books
+    async with engine.begin() as conn: #открыть соединение с бд
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all) # в мета дата записываются все данные
+    return {'ok': True}
 
-
-@app.get('/users')
-def get_users() -> list[UserSchema]:
-    return users
-
-
-#
-# class UserAgeSchema(UserSchema):
-#     age: int = Field(ge=0, le=130)
-#
-# print(repr(UserAgeSchema(**data)))
-# print(repr(UserSchema(**data_without_age)))
