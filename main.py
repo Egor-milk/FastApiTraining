@@ -1,69 +1,33 @@
-from typing import Annotated
-
 import uvicorn
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, HTTPException, Response, Depends
+from authx import AuthX, AuthXConfig
 from pydantic import BaseModel
-
-
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped
 
 app = FastAPI()
 
-engine = create_async_engine('sqlite+aiosqlite:///books.db')
+config = AuthXConfig()
+config.JWT_SECRET_KEY = 'secret'
+config.JWT_ACCESS_COOKIE_NAME = 'my_access_token'
+config.JWT_TOKEN_LOCATION = ['cookies']
 
-new_session = async_sessionmaker(engine, expire_on_commit=False)
-
-async def get_session():
-    async with new_session() as session:
-        yield session # держит сессию открытой, пока не вернется ответ пользователю
-
-
-SessionDep = Annotated[AsyncSession, Depends(get_session)]
-
-class Base(DeclarativeBase):
-    pass
+security = AuthX(config=config)
 
 
-class BookModel(Base): # в sqlalchemy всегда наследование от base класса
-    __tablename__ = 'books'
+class UserLoginSchema(BaseModel):
+    username: str
+    password: str
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    title: Mapped[str]
-    author: Mapped[str]
+@app.post('/login')
+def login(creds: UserLoginSchema, response: Response):
+    if creds.username == 'test' and creds.password == 'test':
+        token = security.create_access_token(uid='12345') # 12345 типа id пользователя
+        response.set_cookie(config.JWT_ACCESS_COOKIE_NAME, token)
+        return {'access_token': token}
+    raise HTTPException(status_code=401, detail='Incorrect username or password')
+@app.get('/protected', dependencies=[Depends(security.access_token_required)]) #обязательно требуется аксес токен
+def protected():
+    return {'data': 'top secret'}
 
-
-@app.post('/setup_database')
-async def setup_database(): # создаёт таблицу books
-    async with engine.begin() as conn: #открыть соединение с бд
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all) #в мета дата записываются все данные
-    return {'ok': True}
-
-class BookAddSchema(BaseModel):
-    title: str
-    author: str
-
-class BookSchema(BookAddSchema):
-    id: int
-
-@app.post('/books')
-async def add_book(data: BookAddSchema, session: SessionDep):
-    new_book = BookModel(
-        title=data.title,
-        author=data.author,
-    )
-    session.add(new_book)
-    await session.commit()
-    return {'ok': True}
-
-@app.get('/books')
-async def get_books(session: SessionDep):
-    query = select(BookModel)
-    await session.execute(query)
-    result = await session.execute(query)
-    return result.scalars().all()
 
 if __name__ == '__main__':
     uvicorn.run('main:app', host='127.0.0.1', port=8080, reload=True)
