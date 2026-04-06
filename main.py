@@ -1,8 +1,11 @@
 from typing import Annotated
 
+import uvicorn
 from fastapi import FastAPI, Depends
 from pydantic import BaseModel
 
+
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped
 
@@ -56,5 +59,11 @@ async def add_book(data: BookAddSchema, session: SessionDep):
     return {'ok': True}
 
 @app.get('/books')
-async def get_books():
-    pass
+async def get_books(session: SessionDep):
+    query = select(BookModel)
+    await session.execute(query)
+    result = await session.execute(query)
+    return result.scalars().all()
+
+if __name__ == '__main__':
+    uvicorn.run('main:app', host='127.0.0.1', port=8080, reload=True)
