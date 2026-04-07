@@ -1,28 +1,25 @@
 import uvicorn
-from fastapi import FastAPI, BackgroundTasks
-import time
-import asyncio
+from fastapi import FastAPI, File, UploadFile as UF
+from typing import Annotated, List
+from pydantic import WithJsonSchema
+
 app = FastAPI()
 
-def sync_task():
-    time.sleep(3)
-    print("отправлен email")
+UploadFile = Annotated[UF, WithJsonSchema({"type": "string", "format": "binary"})]
+@app.post('/files')
+async def upload_file(uploaded_file: UploadFile):
+    file = uploaded_file.file
+    filename = uploaded_file.filename
+    with open(f'1_{filename}', 'wb') as f:
+        f.write(file.read())
 
-async def async_task():
-    await asyncio.sleep(3)
-    print('Сделан запрос в сторонний API')
-
-
-@app.post('/')
-# async def some_route():
-#     ...
-#     asyncio.create_task(async_task()) #пользователю вернут статус 200
-#     return {'ok': True} # и только потом задача выполнится на самом деле
-async def some_route(background_tasks: BackgroundTasks):
-    background_tasks.add_task(sync_task) #работает также как asyncio.create_task  но для синх ф-ии
-    return {'ok': True}
-
-
+@app.post('/multiple_files')
+async def upload_files(uploaded_files: Annotated[list[UploadFile], File(...)]):
+    for uploaded_file in uploaded_files:
+        file = uploaded_file.file
+        filename = uploaded_file.filename
+        with open(f'1_{filename}', 'wb') as f:
+            f.write(file.read())
 
 if __name__ == '__main__':
-    uvicorn.run('main:app', host='127.0.0.1', port=8080)
+    uvicorn.run('main:app', host='127.0.0.1', port=8080, reload=True)
