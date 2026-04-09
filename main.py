@@ -50,4 +50,4 @@ def create_book(new_book: NewBook):
     return {'success': True}
 
 if __name__ == '__main__':
-    uvicorn.run('main:app', reload=True)
+    uvicorn.run('main:app', reload=True, host='127.0.0.1', port=8080)
