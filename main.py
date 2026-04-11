@@ -11,7 +11,7 @@ from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped
 
 app = FastAPI()
 
-engine = create_async_engine('sqlite+aiosqlite:///books.db')
+engine = create_async_engine('sqlite+aiosqlite:///mydb.db')
 
 new_session = async_sessionmaker(engine, expire_on_commit=False)
 
