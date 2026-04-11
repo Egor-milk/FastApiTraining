@@ -1,7 +1,7 @@
 import pytest
 from httpx import AsyncClient, ASGITransport
 
-from main import app
+from src.main import app
 
 # интеграционные тесты, unit тесты тестируют отдельные функции
 @pytest.mark.asyncio #для асинхр тестов
