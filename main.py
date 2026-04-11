@@ -3,7 +3,14 @@ from symtable import Class
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:63342"]
+)
 
 books = [
     {
@@ -50,4 +57,4 @@ def create_book(new_book: NewBook):
     return {'success': True}
 
 if __name__ == '__main__':
-    uvicorn.run('main:app', reload=True, host='127.0.0.1', port=8080)
+    uvicorn.run('main:app', reload=True, host='127.0.0.1', port=8000)
